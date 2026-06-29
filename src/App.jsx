@@ -1,226 +1,263 @@
 import { useEffect, useRef, useState } from "react";
-import { GoogleGenAI } from "@google/genai";
-import Message from "./Message.jsx";
-import DarkModeToggle from "./components/DarkModeToggle.jsx";
+import { useLocalStorage } from "./hooks/useLocalStorage.js";
+import { createGeminiClient, streamContent } from "./services/gemini.js";
+import { WELCOME } from "./constants/prompts.js";
+import Sidebar from "./components/Sidebar.jsx";
+import ChatArea from "./components/ChatArea.jsx";
+import SettingsModal from "./components/SettingsModal.jsx";
 
-const WELCOME = {
-  id: "welcome",
-  role: "assistant",
-  text: "Hello! Ask me anything — I am here to help.",
+const DEFAULT_SETTINGS = {
+  apiKey: "",
+  defaultModel: "gemini-2.5-flash",
+  defaultSystemInstruction: "",
 };
 
-// const QUICK_PROMPTS = [
-//   "What is React?",
-//   "Help me write an email",
-//   "3 tips to study better",
-// ];
+export default function App() {
+  // LocalStorage State
+  const [settings, setSettings] = useLocalStorage("ai-chat-settings", DEFAULT_SETTINGS);
+  const [conversations, setConversations] = useLocalStorage("ai-chat-conversations", []);
+  const [activeId, setActiveId] = useLocalStorage("ai-chat-active-id", "");
 
-function createClient() {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Add VITE_GEMINI_API_KEY in your .env file and restart the server.");
-  }
-  return new GoogleGenAI({ apiKey });
-}
-
-function buildHistory(messages, newText) {
-  const history = messages
-    .filter((msg) => msg.id !== "welcome")
-    .map((msg) => ({
-      role: msg.role === "assistant" ? "model" : "user",
-      parts: [{ text: msg.text }],
-    }));
-
-  history.push({ role: "user", parts: [{ text: newText }] });
-  return history;
-}
-
-function tryCreateClient() {
-  try {
-    return { client: createClient(), error: "" };
-  } catch (err) {
-    return {
-      client: null,
-      error: err instanceof Error ? err.message : "Could not connect to Gemini.",
-    };
-  }
-}
-
-function App() {
-  const [messages, setMessages] = useState([WELCOME]);
+  // Ephemeral UI State
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [setup] = useState(tryCreateClient);
-  const [error, setError] = useState(setup.error);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const clientRef = useRef(setup.client);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-  const idCounter = useRef(0);
+  const clientRef = useRef(null);
 
-  const isNewChat = messages.length === 1 && messages[0].id === "welcome";
-
-  function makeId(prefix) {
-    idCounter.current += 1;
-    return `${prefix}-${idCounter.current}`;
-  }
-
+  // Initialize initial state if empty
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  useEffect(() => {
-    if (!loading) {
-      inputRef.current?.focus();
+    if (conversations.length === 0) {
+      const initialId = `chat-${Date.now()}`;
+      const defaultConv = {
+        id: initialId,
+        title: "New Chat",
+        messages: [WELCOME],
+        model: settings.defaultModel || "gemini-2.5-flash",
+        systemInstruction: settings.defaultSystemInstruction || "",
+        createdAt: Date.now(),
+      };
+      setConversations([defaultConv]);
+      setActiveId(initialId);
     }
-  }, [loading]);
+  }, [conversations.length, setConversations, setActiveId, settings.defaultModel, settings.defaultSystemInstruction]);
 
-  function resizeInput() {
-    const box = inputRef.current;
-    if (!box) return;
-    box.style.height = "auto";
-    box.style.height = `${Math.min(box.scrollHeight, 100)}px`;
+  // Update Gemini client on API key change
+  const currentApiKey = settings.apiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
+  
+  useEffect(() => {
+    clientRef.current = createGeminiClient(currentApiKey);
+  }, [currentApiKey]);
+
+  // Find active conversation
+  const activeConv = conversations.find((c) => c.id === activeId) || conversations[0];
+
+  // Helper to build message history for the Gemini API
+  function buildHistory(messages, newText) {
+    const history = messages
+      .filter((msg) => msg.id !== "welcome" && msg.role !== "error")
+      .map((msg) => ({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.text }],
+      }));
+
+    if (newText) {
+      history.push({ role: "user", parts: [{ text: newText }] });
+    }
+    return history;
   }
 
-  async function sendMessage(pickedText) {
+  // Action: Send message (handles streaming)
+  async function handleSendMessage(pickedText) {
     const text = (pickedText ?? input).trim();
     if (!text || loading) return;
 
     if (!clientRef.current) {
-      setError("Check your API key in the .env file.");
+      setSettingsOpen(true);
       return;
     }
 
-    const userMsg = { id: makeId("user"), role: "user", text };
-    const oldMessages = messages;
+    const currentConvId = activeConv.id;
+    const userMsg = { id: `user-${Date.now()}`, role: "user", text };
+    const aiPlaceholderId = `ai-placeholder-${Date.now()}`;
+    const oldMessages = activeConv.messages;
 
-    setMessages((prev) => [...prev, userMsg]);
+    // Append user message & auto-generate title if initial message
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === currentConvId) {
+          const newTitle = c.title === "New Chat"
+            ? text.substring(0, 30) + (text.length > 30 ? "..." : "")
+            : c.title;
+
+          return {
+            ...c,
+            title: newTitle,
+            messages: [...c.messages, userMsg],
+          };
+        }
+        return c;
+      })
+    );
+
     setInput("");
     setLoading(true);
-    setError("");
-
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
 
     try {
-      const response = await clientRef.current.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: buildHistory(oldMessages, text),
+      const contents = buildHistory(oldMessages, text);
+      
+      const responseStream = await streamContent(clientRef.current, {
+        model: activeConv.model || "gemini-2.5-flash",
+        contents,
+        systemInstruction: activeConv.systemInstruction,
       });
 
-      const reply =
-        response.text?.trim() || "No reply came back. Please try again.";
+      // Insert AI message block
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === currentConvId) {
+            return {
+              ...c,
+              messages: [...c.messages, { id: aiPlaceholderId, role: "assistant", text: "" }],
+            };
+          }
+          return c;
+        })
+      );
 
-      setMessages((prev) => [
-        ...prev,
-        { id: makeId("ai"), role: "assistant", text: reply },
-      ]);
+      let fullText = "";
+      for await (const chunk of responseStream) {
+        const textChunk = chunk.text;
+        if (textChunk) {
+          fullText += textChunk;
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id === currentConvId) {
+                return {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === aiPlaceholderId ? { ...m, text: fullText } : m
+                  ),
+                };
+              }
+              return c;
+            })
+          );
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
-      setMessages((prev) => [
-        ...prev,
-        { id: makeId("error"), role: "assistant", text: `Error: ${msg}` },
-      ]);
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === currentConvId) {
+            const filteredMessages = c.messages.filter((m) => m.id !== aiPlaceholderId);
+            return {
+              ...c,
+              messages: [
+                ...filteredMessages,
+                { id: `error-${Date.now()}`, role: "assistant", text: `Error: ${msg}`, isError: true },
+              ],
+            };
+          }
+          return c;
+        })
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  function startNewChat() {
+  // Action: Create new chat session
+  function handleNewChat() {
     if (loading) return;
-    setMessages([WELCOME]);
+    const newId = `chat-${Date.now()}`;
+    const newConv = {
+      id: newId,
+      title: "New Chat",
+      messages: [WELCOME],
+      model: settings.defaultModel || "gemini-2.5-flash",
+      systemInstruction: settings.defaultSystemInstruction || "",
+      createdAt: Date.now(),
+    };
+    setConversations((prev) => [newConv, ...prev]);
+    setActiveId(newId);
     setInput("");
-    setError("");
-    inputRef.current?.focus();
+    setSidebarOpen(false);
+  }
+
+  // Action: Delete chat session
+  function handleDeleteChat(id, event) {
+    event.stopPropagation();
+    if (loading) return;
+
+    const remaining = conversations.filter((c) => c.id !== id);
+    if (remaining.length === 0) {
+      const newId = `chat-${Date.now()}`;
+      const defaultConv = {
+        id: newId,
+        title: "New Chat",
+        messages: [WELCOME],
+        model: settings.defaultModel || "gemini-2.5-flash",
+        systemInstruction: settings.defaultSystemInstruction || "",
+        createdAt: Date.now(),
+      };
+      setConversations([defaultConv]);
+      setActiveId(newId);
+    } else {
+      setConversations(remaining);
+      if (activeId === id) {
+        setActiveId(remaining[0].id);
+      }
+    }
+  }
+
+  // Action: Rename chat session
+  function handleRenameChat(id, newTitle) {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c))
+    );
+  }
+
+  // Action: Save updated settings
+  function handleSaveSettings(newSettings) {
+    setSettings(newSettings);
+    setSettingsOpen(false);
   }
 
   return (
-    <div className="page">
-      <div className="chat">
-        <header className="header">
-          <div className="header-title">
-            <img src="/favicon.svg" alt="" className="logo" width="28" height="28" />
-            <h1>AI Chat</h1>
-          </div>
-          <div className="header-actions">
-            <DarkModeToggle />
-            <button
-              type="button"
-              className="text-btn"
-              onClick={startNewChat}
-              disabled={loading}
-            >
-              New chat
-            </button>
-          </div>
-        </header>
+    <div className="app-container">
+      <Sidebar
+        isOpen={sidebarOpen}
+        conversations={conversations}
+        activeId={activeId}
+        onSelectChat={setActiveId}
+        onNewChat={handleNewChat}
+        onDeleteChat={handleDeleteChat}
+        onRenameChat={handleRenameChat}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onClose={() => setSidebarOpen(false)}
+        loading={loading}
+      />
 
-        {error && <p className="error">{error}</p>}
+      <ChatArea
+        activeConv={activeConv}
+        currentApiKey={currentApiKey}
+        loading={loading}
+        input={input}
+        setInput={setInput}
+        onSendMessage={handleSendMessage}
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onNewChat={handleNewChat}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
-        {isNewChat && (
-          <div className="suggestions">
-            {/* {QUICK_PROMPTS.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                className="suggestion"
-                disabled={loading}
-                onClick={() => sendMessage(prompt)}
-              >
-                {prompt}
-              </button>
-            ))} */}
-          </div>
-        )}
-
-        <main className="messages">
-          {messages.map((msg) => (
-            <Message key={msg.id} role={msg.role} text={msg.text} />
-          ))}
-
-          {loading && (
-            <div className="message message-ai">
-              <div className="bubble typing">Thinking...</div>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </main>
-
-        <footer className="footer">
-          <div className="footer-inner">
-            <textarea
-              ref={inputRef}
-              value={input}
-              rows={1}
-              placeholder="Type your message..."
-              disabled={loading}
-              onChange={(e) => {
-                setInput(e.target.value);
-                resizeInput();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="send-btn"
-              disabled={loading || !input.trim()}
-              onClick={() => sendMessage()}
-            >
-              {loading ? "..." : "Send"}
-            </button>
-          </div>
-          {/* <p className="footer-hint">Enter to send · Shift+Enter for new line</p> */}
-        </footer>
-      </div>
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onSave={handleSaveSettings}
+      />
     </div>
   );
 }
-
-export default App;
