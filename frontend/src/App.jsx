@@ -33,7 +33,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const BACKEND_URL = "http://localhost:5000";
+  const BACKEND_URL = "https://ignite-ai-backend.onrender.com";
 
   // Handle successful registration/login
   function handleAuthSuccess(newToken, newUser) {
