@@ -2,29 +2,74 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { GoogleGenAI } = require('@google/genai');
+const { loadEnv } = require('../utils/env');
+const { createRateLimiter, getClientIp } = require('../middleware/rateLimit');
+
+const { geminiApiKey } = loadEnv();
+
+const chatLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 30,
+  message: 'Too many chat requests. Please slow down for a moment.',
+  keyGenerator(req) {
+    return req.user?.id || getClientIp(req);
+  },
+});
+
+function isValidPart(part) {
+  return Boolean(part) && typeof part.text === 'string' && part.text.trim().length > 0;
+}
+
+function isValidContentItem(item) {
+  if (!item || typeof item !== 'object') {
+    return false;
+  }
+
+  if (!['user', 'model'].includes(item.role)) {
+    return false;
+  }
+
+  if (!Array.isArray(item.parts) || item.parts.length === 0) {
+    return false;
+  }
+
+  return item.parts.every(isValidPart);
+}
 
 // @route   POST api/chat
 // @desc    Generate content stream from Gemini API
 // @access  Private
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, chatLimiter, async (req, res) => {
   const { model, contents, systemInstruction } = req.body;
 
-  if (!contents || !Array.isArray(contents)) {
+  if (!Array.isArray(contents) || contents.length === 0) {
     return res.status(400).json({ error: 'Contents history is required' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Gemini API key is not configured on the server' });
+  if (!contents.every(isValidContentItem)) {
+    return res.status(400).json({ error: 'Contents format is invalid' });
+  }
+
+  if (model !== undefined && (typeof model !== 'string' || model.trim().length === 0 || model.length > 100)) {
+    return res.status(400).json({ error: 'Model is invalid' });
+  }
+
+  if (
+    systemInstruction !== undefined &&
+    (typeof systemInstruction !== 'string' || systemInstruction.length > 4000)
+  ) {
+    return res.status(400).json({ error: 'System instruction is invalid' });
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
     // Set response headers for server-sent events (SSE)
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
 
     const config = {};
     if (systemInstruction) {

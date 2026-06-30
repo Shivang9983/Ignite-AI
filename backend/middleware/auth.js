@@ -1,4 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { loadEnv } = require('../utils/env');
+
+const { jwtSecret } = loadEnv();
 
 module.exports = function (req, res, next) {
   // Get token from header
@@ -16,7 +19,7 @@ module.exports = function (req, res, next) {
   const token = parts[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ignite_ai_secret_key_2026_xyz');
+    const decoded = jwt.verify(token, jwtSecret);
     req.user = decoded.user;
     next();
   } catch (err) {

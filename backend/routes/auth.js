@@ -4,11 +4,28 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { loadEnv } = require('../utils/env');
+const { createRateLimiter, getClientIp } = require('../middleware/rateLimit');
+
+const { jwtSecret } = loadEnv();
+
+const authLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 20,
+  message: 'Too many authentication attempts. Please try again later.',
+  keyGenerator(req) {
+    const username = typeof req.body?.username === 'string'
+      ? req.body.username.trim().toLowerCase()
+      : 'anonymous';
+
+    return `${getClientIp(req)}:${username}`;
+  },
+});
 
 // @route   POST api/auth/register
 // @desc    Register a user
 // @access  Public
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   // Simple validation
@@ -59,7 +76,7 @@ router.post('/register', async (req, res) => {
 
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'ignite_ai_secret_key_2026_xyz',
+      jwtSecret,
       { expiresIn: '7d' },
       (err, token) => {
         if (err) throw err;
@@ -81,7 +98,7 @@ router.post('/register', async (req, res) => {
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   // Simple validation
@@ -117,7 +134,7 @@ router.post('/login', async (req, res) => {
 
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'ignite_ai_secret_key_2026_xyz',
+      jwtSecret,
       { expiresIn: '7d' },
       (err, token) => {
         if (err) throw err;

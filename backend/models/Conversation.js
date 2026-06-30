@@ -10,8 +10,7 @@ const MessageSchema = new mongoose.Schema({
 const ConversationSchema = new mongoose.Schema({
   id: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -47,5 +46,8 @@ ConversationSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
+
+ConversationSchema.index({ userId: 1, id: 1 }, { unique: true });
+ConversationSchema.index({ userId: 1, updatedAt: -1 });
 
 module.exports = mongoose.model('Conversation', ConversationSchema);
