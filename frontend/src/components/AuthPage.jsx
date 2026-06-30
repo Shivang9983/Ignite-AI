@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getApiBaseUrl } from "../config/api.js";
 
 /**
  * A beautiful, glassmorphic login/registration screen with interactive floating embers and click bursts.
@@ -13,7 +14,7 @@ export default function AuthPage({ onAuthSuccess }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const BACKEND_URL = "http://localhost:5000";
+  const BACKEND_URL = getApiBaseUrl();
 
   // Canvas Ember Particle & Burst System
   useEffect(() => {
@@ -385,7 +386,11 @@ export default function AuthPage({ onAuthSuccess }) {
 
       onAuthSuccess(data.token, data.user);
     } catch (err) {
-      setError(err.message || "Something went wrong. Please check your connection.");
+      if (err instanceof TypeError) {
+        setError("Backend server se connection nahi ho pa raha. API URL ya server status check karo.");
+      } else {
+        setError(err.message || "Something went wrong. Please check your connection.");
+      }
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import Sidebar from "./components/Sidebar.jsx";
 import ChatArea from "./components/ChatArea.jsx";
 import SettingsModal from "./components/SettingsModal.jsx";
 import AuthPage from "./components/AuthPage.jsx";
+import { getApiBaseUrl } from "./config/api.js";
 
 const DEFAULT_SETTINGS = {
   apiKey: "",
@@ -33,7 +34,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const BACKEND_URL = "https://ignite-ai-backend.onrender.com";
+  const BACKEND_URL = getApiBaseUrl();
 
   // Handle successful registration/login
   function handleAuthSuccess(newToken, newUser) {
@@ -418,4 +419,3 @@ export default function App() {
     </div>
   );
 }
-
