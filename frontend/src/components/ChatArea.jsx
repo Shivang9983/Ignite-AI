@@ -17,7 +17,6 @@ import { QUICK_PROMPTS } from "../constants/prompts.js";
  */
 export default function ChatArea({
   activeConv,
-  currentApiKey,
   loading,
   input,
   setInput,
@@ -76,11 +75,6 @@ export default function ChatArea({
         </div>
 
         <div className="header-actions">
-          {!currentApiKey && (
-            <span style={{ color: "var(--danger)", fontSize: "0.8rem", fontWeight: "bold", cursor: "pointer" }} onClick={onOpenSettings}>
-              ⚠️ Set API Key
-            </span>
-          )}
           <button
             type="button"
             className="btn-secondary"
@@ -154,8 +148,8 @@ export default function ChatArea({
               ref={textareaRef}
               value={input}
               rows={1}
-              placeholder={currentApiKey ? "Message Gemini..." : "Please configure your API key in Settings..."}
-              disabled={loading || !currentApiKey}
+              placeholder="Message Gemini..."
+              disabled={loading}
               onChange={(e) => {
                 setInput(e.target.value);
                 resizeInput();
@@ -166,7 +160,7 @@ export default function ChatArea({
             <button
               type="button"
               className="btn-send-message"
-              disabled={loading || !input.trim() || !currentApiKey}
+              disabled={loading || !input.trim()}
               onClick={() => handleSend()}
               aria-label="Send message"
             >

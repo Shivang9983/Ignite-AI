@@ -46,21 +46,6 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }) {
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
-              <label htmlFor="api-key-input">Gemini API Key</label>
-              <input
-                id="api-key-input"
-                type="password"
-                className="form-input"
-                value={tempApiKey}
-                onChange={(e) => setTempApiKey(e.target.value)}
-                placeholder="Enter your API key"
-              />
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
-                Your key is stored locally in your browser. Leave blank to use .env variable.
-              </span>
-            </div>
-
-            <div className="form-group">
               <label htmlFor="model-select">Default Model</label>
               <select
                 id="model-select"
