@@ -29,7 +29,8 @@ export default function Sidebar({
   onClose,
   loading,
   user,
-  onLogout
+  onLogout,
+  onOpenAuth
 }) {
   const [editingId, setEditingId] = useState(null);
   const [editTitleText, setEditTitleText] = useState("");
@@ -165,6 +166,30 @@ export default function Sidebar({
                 className="history-action-btn delete-btn"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              </button>
+            </div>
+          )}
+          {!user && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px", marginBottom: "4px" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>Guest User</span>
+              <button 
+                onClick={onOpenAuth}
+                style={{
+                  background: "var(--accent)",
+                  border: "none",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  fontSize: "0.8rem",
+                  fontWeight: "600",
+                  transition: "background var(--transition-fast)"
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--accent-hover)"}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "var(--accent)"}
+                type="button"
+              >
+                Sign In
               </button>
             </div>
           )}
