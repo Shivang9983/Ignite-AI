@@ -33,6 +33,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState("");
 
   const BACKEND_URL = getApiBaseUrl();
 
@@ -42,6 +44,12 @@ export default function App() {
     localStorage.setItem("ai-chat-user", JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
+    setAuthModalOpen(false);
+
+    if (pendingMessage) {
+      handleSendMessage(pendingMessage, newToken);
+      setPendingMessage("");
+    }
   }
 
   // Handle Logout
@@ -124,7 +132,7 @@ export default function App() {
 
   // Create initial chat session if empty after conversations are loaded
   useEffect(() => {
-    if (token && conversations.length === 0 && !loading) {
+    if (conversations.length === 0 && !loading) {
       const initialId = `chat-${Date.now()}`;
       const defaultConv = {
         id: initialId,
@@ -136,7 +144,9 @@ export default function App() {
       };
       setConversations([defaultConv]);
       setActiveId(initialId);
-      saveConvToBackend(defaultConv);
+      if (token) {
+        saveConvToBackend(defaultConv);
+      }
     }
   }, [token, conversations.length, settings.defaultModel, settings.defaultSystemInstruction]);
 
@@ -159,12 +169,14 @@ export default function App() {
   }
 
   // Action: Send message (handles SSE streaming from backend)
-  async function handleSendMessage(pickedText) {
+  async function handleSendMessage(pickedText, overrideToken) {
     const text = (pickedText ?? input).trim();
     if (!text || loading) return;
 
-    if (!token) {
-      handleLogout();
+    const currentToken = overrideToken || token;
+    if (!currentToken) {
+      setPendingMessage(text);
+      setAuthModalOpen(true);
       return;
     }
 
@@ -198,7 +210,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          "Authorization": `Bearer ${currentToken}`,
         },
         body: JSON.stringify({
           model: activeConv.model || "gemini-2.5-flash",
@@ -270,7 +282,7 @@ export default function App() {
         ...updatedConv,
         messages: [...updatedMessages, { id: aiPlaceholderId, role: "assistant", text: fullText }],
       };
-      await saveConvToBackend(finalConv);
+      await saveConvToBackend(finalConv, currentToken);
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
@@ -284,7 +296,7 @@ export default function App() {
               ...c,
               messages: [...filteredMessages, errorMsg],
             };
-            saveConvToBackend(finalConvWithError);
+            saveConvToBackend(finalConvWithError, currentToken);
             return finalConvWithError;
           }
           return c;
@@ -312,8 +324,9 @@ export default function App() {
     setInput("");
     setSidebarOpen(false);
     
-    // Save to backend
-    saveConvToBackend(newConv);
+    if (token) {
+      saveConvToBackend(newConv);
+    }
   }
 
   // Action: Delete chat session
@@ -321,7 +334,6 @@ export default function App() {
     event.stopPropagation();
     if (loading) return;
 
-    // Call delete API on backend
     await deleteConvFromBackend(id);
 
     const remaining = conversations.filter((c) => c.id !== id);
@@ -337,7 +349,9 @@ export default function App() {
       };
       setConversations([defaultConv]);
       setActiveId(newId);
-      saveConvToBackend(defaultConv);
+      if (token) {
+        saveConvToBackend(defaultConv);
+      }
     } else {
       setConversations(remaining);
       if (activeId === id) {
@@ -351,7 +365,7 @@ export default function App() {
     setConversations((prev) => {
       const updated = prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c));
       const renamedConv = updated.find((c) => c.id === id);
-      if (renamedConv) {
+      if (renamedConv && token) {
         saveConvToBackend(renamedConv);
       }
       return updated;
@@ -363,7 +377,6 @@ export default function App() {
     setSettings(newSettings);
     setSettingsOpen(false);
 
-    // If active conversation exists, update its local settings too
     if (activeConv) {
       const updatedConv = {
         ...activeConv,
@@ -373,13 +386,10 @@ export default function App() {
       setConversations((prev) =>
         prev.map((c) => (c.id === activeConv.id ? updatedConv : c))
       );
-      saveConvToBackend(updatedConv);
+      if (token) {
+        saveConvToBackend(updatedConv);
+      }
     }
-  }
-
-  // If user is not authenticated, show Auth Page
-  if (!token) {
-    return <AuthPage onAuthSuccess={handleAuthSuccess} />;
   }
 
   return (
@@ -397,6 +407,7 @@ export default function App() {
         loading={loading}
         user={user}
         onLogout={handleLogout}
+        onOpenAuth={() => setAuthModalOpen(true)}
       />
 
       <ChatArea
@@ -416,6 +427,14 @@ export default function App() {
         settings={settings}
         onSave={handleSaveSettings}
       />
+
+      {authModalOpen && (
+        <AuthPage
+          onAuthSuccess={handleAuthSuccess}
+          isModal={true}
+          onClose={() => setAuthModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
