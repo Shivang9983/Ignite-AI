@@ -409,12 +409,11 @@ export default function AuthPage({ onAuthSuccess }) {
       style={{
         position: "relative",
         display: "flex",
-        minHeight: "100vh",
+        flexDirection: "column",
+        height: "100vh",
         width: "100vw",
-        alignItems: "center",
-        justifyContent: "center",
         background: "var(--bg-primary)",
-        padding: "24px",
+        padding: "40px 24px",
         overflowY: "auto",
         transition: "background var(--transition-normal)",
       }}
@@ -440,32 +439,33 @@ export default function AuthPage({ onAuthSuccess }) {
           zIndex: 1,
           width: "100%",
           maxWidth: "430px",
+          margin: "auto",
           backgroundColor: "color-mix(in srgb, var(--bg-secondary) 75%, transparent)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           border: "1px solid var(--border-color)",
           borderRadius: "24px",
-          padding: "48px 40px",
+          padding: "36px 32px",
           boxShadow: "0 20px 40px -15px rgba(0, 0, 0, 0.3)",
           display: "flex",
           flexDirection: "column",
-          gap: "32px",
+          gap: "24px",
           animation: "scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
           transition: "all var(--transition-normal)",
         }}
       >
         {/* Header Section */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "14px", textAlign: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", textAlign: "center" }}>
           <img
             src="/logo.png"
             alt="Ignite AI"
-            width="60"
-            height="60"
+            width="54"
+            height="54"
             style={{ borderRadius: "14px", boxShadow: "var(--shadow-md)", transition: "transform var(--transition-fast)" }}
           />
           <h1
             style={{
-              fontSize: "2.1rem",
+              fontSize: "1.9rem",
               fontWeight: 800,
               background: "linear-gradient(135deg, var(--accent), #ff9e00)",
               WebkitBackgroundClip: "text",
@@ -476,7 +476,7 @@ export default function AuthPage({ onAuthSuccess }) {
           >
             {isLogin ? "Welcome Back" : "Get Started"}
           </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", margin: 0, lineHeight: 1.4 }}>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", margin: 0, lineHeight: 1.4 }}>
             {isLogin ? "Login to access your Ignite AI account" : "Create an account to start chatting with Gemini"}
           </p>
         </div>
@@ -488,19 +488,19 @@ export default function AuthPage({ onAuthSuccess }) {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "10px",
-              padding: "14px 18px",
+              gap: "8px",
+              padding: "10px 14px",
               backgroundColor: "var(--danger-light)",
               border: "1px solid var(--danger)",
-              borderRadius: "14px",
+              borderRadius: "12px",
               color: "var(--danger)",
-              fontSize: "0.85rem",
+              fontSize: "0.8rem",
               fontWeight: 500,
               lineHeight: 1.4,
               boxShadow: "var(--shadow-sm)",
             }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -510,9 +510,9 @@ export default function AuthPage({ onAuthSuccess }) {
         )}
 
         {/* Input Form */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <label htmlFor="username-input" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label htmlFor="username-input" style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)" }}>
               Username
             </label>
             <input
@@ -525,12 +525,12 @@ export default function AuthPage({ onAuthSuccess }) {
               placeholder="Enter your username"
               style={{
                 width: "100%",
-                padding: "14px 16px",
-                borderRadius: "14px",
+                padding: "12px 14px",
+                borderRadius: "12px",
                 border: "1px solid var(--border-color)",
                 backgroundColor: "color-mix(in srgb, var(--bg-primary) 70%, transparent)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
                 transition: "all var(--transition-fast)",
               }}
               onFocus={(e) => {
@@ -544,8 +544,8 @@ export default function AuthPage({ onAuthSuccess }) {
             />
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <label htmlFor="password-input" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <label htmlFor="password-input" style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)" }}>
               Password
             </label>
             <input
@@ -558,12 +558,12 @@ export default function AuthPage({ onAuthSuccess }) {
               placeholder="Enter your password"
               style={{
                 width: "100%",
-                padding: "14px 16px",
-                borderRadius: "14px",
+                padding: "12px 14px",
+                borderRadius: "12px",
                 border: "1px solid var(--border-color)",
                 backgroundColor: "color-mix(in srgb, var(--bg-primary) 70%, transparent)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
                 transition: "all var(--transition-fast)",
               }}
               onFocus={(e) => {
@@ -578,8 +578,8 @@ export default function AuthPage({ onAuthSuccess }) {
           </div>
 
           {!isLogin && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label htmlFor="confirm-password-input" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label htmlFor="confirm-password-input" style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)" }}>
                 Confirm Password
               </label>
               <input
@@ -592,12 +592,12 @@ export default function AuthPage({ onAuthSuccess }) {
                 placeholder="Confirm your password"
                 style={{
                   width: "100%",
-                  padding: "14px 16px",
-                  borderRadius: "14px",
+                  padding: "12px 14px",
+                  borderRadius: "12px",
                   border: "1px solid var(--border-color)",
                   backgroundColor: "color-mix(in srgb, var(--bg-primary) 70%, transparent)",
                   color: "var(--text-primary)",
-                  fontSize: "0.95rem",
+                  fontSize: "0.9rem",
                   transition: "all var(--transition-fast)",
                 }}
                 onFocus={(e) => {
@@ -617,19 +617,19 @@ export default function AuthPage({ onAuthSuccess }) {
             disabled={loading}
             style={{
               width: "100%",
-              padding: "15px",
-              borderRadius: "14px",
+              padding: "13px",
+              borderRadius: "12px",
               border: "none",
               backgroundColor: "var(--accent)",
               color: "#ffffff",
               fontWeight: 700,
-              fontSize: "1rem",
+              fontSize: "0.95rem",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: "8px",
-              marginTop: "8px",
+              marginTop: "4px",
               transition: "all var(--transition-fast)",
               boxShadow: "0 6px 16px rgba(99, 102, 241, 0.25)",
             }}
