@@ -6,7 +6,7 @@ import { getApiBaseUrl } from "../config/api.js";
  * @param {object} props
  * @param {Function} props.onAuthSuccess - Callback returning (token, user)
  */
-export default function AuthPage({ onAuthSuccess }) {
+export default function AuthPage({ onAuthSuccess, isModal = false, onClose = null }) {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -407,12 +407,17 @@ export default function AuthPage({ onAuthSuccess }) {
   return (
     <div
       style={{
-        position: "relative",
+        position: isModal ? "fixed" : "relative",
+        top: isModal ? 0 : undefined,
+        left: isModal ? 0 : undefined,
+        zIndex: isModal ? 9999 : undefined,
         display: "flex",
         flexDirection: "column",
         height: "100vh",
         width: "100vw",
-        background: "var(--bg-primary)",
+        background: isModal ? "rgba(10, 10, 12, 0.75)" : "var(--bg-primary)",
+        backdropFilter: isModal ? "blur(12px)" : undefined,
+        WebkitBackdropFilter: isModal ? "blur(12px)" : undefined,
         padding: "40px 24px",
         overflowY: "auto",
         transition: "background var(--transition-normal)",
@@ -454,6 +459,32 @@ export default function AuthPage({ onAuthSuccess }) {
           transition: "all var(--transition-normal)",
         }}
       >
+        {isModal && onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: "20px",
+              right: "20px",
+              background: "none",
+              border: "none",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+              padding: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "color var(--transition-fast)",
+              zIndex: 10,
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = "var(--text-primary)"}
+            onMouseOut={(e) => e.currentTarget.style.color = "var(--text-secondary)"}
+            aria-label="Close"
+            type="button"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        )}
         {/* Header Section */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", textAlign: "center" }}>
           <img
