@@ -14,10 +14,16 @@ function readEnv(name) {
 
 function readAllowedOrigins() {
   const rawValue = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "";
-  return rawValue
+  const origins = rawValue
     .split(",")
-    .map((value) => value.trim())
+    .map((value) => value.trim().replace(/\/+$/, ""))
     .filter(Boolean);
+
+  // Fallback to allow the live Vercel app if no custom origins are configured
+  if (origins.length === 0) {
+    origins.push("https://ignite-ai-xi.vercel.app");
+  }
+  return origins;
 }
 
 function loadEnv() {
